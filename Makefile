@@ -1,6 +1,8 @@
 PACKAGE := cdwrxnorm
 .PHONY: clean-pyc clean-build
 
+default: test
+
 help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
