@@ -85,7 +85,7 @@ def head(buf, N=10, bytes=None):
 def head_gpg(fn, N=10):
     gpg = gnupg.GPG(homedir='~/.gnupg')
     pwd = getpass.getpass('private key password: ')
-    return head(StringIO(gpg.decrypt_file(StringIO(head(open(fn, 'rb'), 131076,
+    return head(StringIO(gpg.decrypt_file(StringIO(head(fopen(fn), 131076,
                                                         bytes=True)),
                                           passphrase=pwd,
                                           always_trust=True).data),
@@ -99,13 +99,7 @@ def get_cols(fn, sep='|'):
 
 def count_cfreq_prec(fn, char='|'):
     c = Counter()
-    with open(fn, 'rb') as fin:
-        ufin = fin
-        if fn.endswith('.gpg'):
-            gpg = gnupg.GPG(homedir='~/.gnupg')
-            pwd = getpass.getpass('private key password: ')
-            d = gpg.decrypt_file(fin, passphrase=pwd, always_trust=True)
-            ufin = StringIO(d.data)
+    with fopen(fn) as ufin:
         for rec in ufin:
             c[rec.count(char)] += 1
     return c
