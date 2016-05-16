@@ -1,0 +1,12 @@
+Source: epana
+Maintainer: Evan Phelps <evan.phelps@phelps.work>
+Section: python
+Priority: optional
+Build-Depends: python, python-dev, dh-virtualenv, debhelper (>= 9)
+Standards-Version: 3.9.5
+
+Package: epana
+Architecture: any
+Depends: ${misc:Depends}, ${python:Depends}
+Description: 
+

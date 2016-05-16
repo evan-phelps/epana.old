@@ -1,4 +1,6 @@
 CHANGES
 =======
 
+* add getpass to reqs
+* add gitignore and default make target of "test"
 * first commit

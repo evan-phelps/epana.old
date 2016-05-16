@@ -1,4 +1,4 @@
-PACKAGE := cdwrxnorm
+PACKAGE := epana
 .PHONY: clean-pyc clean-build
 
 default: test

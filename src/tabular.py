@@ -33,30 +33,39 @@ def ssh_open(fpaths, srvr, usr, pwd,
         ssh.close()
 
 
-def load_files(fnames, delims=None, **kwargs):
-    df = None
+@contextmanager
+def fopen(fpath):
     pwd = None
     srvr_pwds = {}
+    this_open = partial(open, mode='rb')
+    tokens = fpath.split(':')
+    if len(tokens) > 1:
+        (user, server) = tokens[0].split('@')
+        srvr_pwds[tokens[0]] = srvr_pwds[tokens[0]] \
+            if tokens[0] in srvr_pwds \
+            else getpass.getpass('password (%s): ' % tokens[0])
+        this_open = partial(ssh_open, srvr=server,
+                            usr=user, pwd=srvr_pwds[tokens[0]])
+        fpath = tokens[1]
+    with this_open(fpath) as fin:
+        ufin = fin
+        # TODO: Can this be changed to decrypt and yield lines in blocks
+        #       so that the whole file does not need to be decrypted before
+        #       starting to yield lines?
+        if fpath.endswith('.gpg'):
+            gpg = gnupg.GPG(homedir='~/.gnupg')
+            pwd = getpass.getpass(
+                'private key password: ') if pwd is None else pwd
+            d = gpg.decrypt_file(fin, passphrase=pwd, always_trust=True)
+            ufin = StringIO(d.data)
+        yield ufin
+
+
+def load_files(fnames, delims=None, **kwargs):
+    df = None
     delims = len(fnames) * ['|'] if delims is None else delims
     for (fname, delim) in zip(fnames, delims):
-        this_open = partial(open, mode='rb')
-        tokens = fname.split(':')
-        if len(tokens) > 1:
-            (user, server) = tokens[0].split('@')
-            srvr_pwds[tokens[0]] = srvr_pwds[tokens[0]] \
-                if tokens[0] in srvr_pwds \
-                else getpass.getpass('password (%s): ' % tokens[0])
-            this_open = partial(ssh_open, srvr=server,
-                                usr=user, pwd=srvr_pwds[tokens[0]])
-            fname = tokens[1]
-        with this_open(fname) as fin:
-            ufin = fin
-            if fname.endswith('.gpg'):
-                gpg = gnupg.GPG(homedir='/home/ephelps/.gnupg')
-                pwd = getpass.getpass(
-                    'private key password: ') if pwd is None else pwd
-                d = gpg.decrypt_file(fin, passphrase=pwd, always_trust=True)
-                ufin = StringIO(d.data)
+        with fopen(fname) as ufin:
             this_df = pd.read_table(ufin, sep=delim, dtype=str, **kwargs)
             this_df['fname'] = fname
             this_df.columns = [c.replace("'", "") for c in this_df.columns]
@@ -74,7 +83,7 @@ def head(buf, N=10, bytes=None):
 
 
 def head_gpg(fn, N=10):
-    gpg = gnupg.GPG(homedir='/home/ephelps/.gnupg')
+    gpg = gnupg.GPG(homedir='~/.gnupg')
     pwd = getpass.getpass('private key password: ')
     return head(StringIO(gpg.decrypt_file(StringIO(head(open(fn, 'rb'), 131076,
                                                         bytes=True)),
@@ -93,7 +102,7 @@ def count_cfreq_prec(fn, char='|'):
     with open(fn, 'rb') as fin:
         ufin = fin
         if fn.endswith('.gpg'):
-            gpg = gnupg.GPG(homedir='/home/ephelps/.gnupg')
+            gpg = gnupg.GPG(homedir='~/.gnupg')
             pwd = getpass.getpass('private key password: ')
             d = gpg.decrypt_file(fin, passphrase=pwd, always_trust=True)
             ufin = StringIO(d.data)
