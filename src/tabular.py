@@ -61,14 +61,17 @@ def fopen(fpath):
         yield fin
 
 
-def decrypt(fin, pwd=None):
+def decrypt(fin, pwd=None, ostream=False):
     # Some systems might need binary=/usr/bin/gpg2 if multiple versions
     # are installed.  Consider adding parameter to specify.
     gpg = gnupg.GPG(homedir='~/.gnupg')
     pwd = getpass.getpass(
         'private key password: ') if pwd is None else pwd
     d = gpg.decrypt_file(fin, passphrase=pwd, always_trust=True)
-    return d.data.rstrip(os.linesep).split(os.linesep)
+    if ostream is True:
+        return StringIO(d.data)
+    else:
+        return d.data.rstrip(os.linesep).split(os.linesep)
 
 
 def head(fname, N=10, bytes=None):
@@ -126,7 +129,7 @@ def load_files(fnames, delims=None, **kwargs):
         with fopen(fname) as fin:
             ufin = fin
             if fname.endswith('.gpg'):
-                ufin = StringIO(decrypt(fin, pwd))
+                ufin = decrypt(fin, pwd, ostream=True)
             this_df = pd.read_table(ufin, sep=delim, dtype=str, **kwargs)
             this_df['fname'] = fname
             this_df.columns = [c.replace("'", "") for c in this_df.columns]
