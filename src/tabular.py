@@ -18,6 +18,11 @@ import gnupg
 from collections import Counter
 
 
+# ############################################################# #
+# ################## file handling functions ################## #
+# ############################################################# #
+# These should probably be moved to another file ############## #
+
 @contextmanager
 def ssh_open(fpaths, srvr, usr, pwd,
              known_hosts=os.environ['HOME'] + '/.ssh/known_hosts'):
@@ -64,23 +69,6 @@ def decrypt(fin, pwd=None):
     return d.data.rstrip(os.linesep).split(os.linesep)
 
 
-def load_files(fnames, delims=None, **kwargs):
-    df = None
-    delims = len(fnames) * ['|'] if delims is None else delims
-    pwd = None
-    for (fname, delim) in zip(fnames, delims):
-        with fopen(fname) as fin:
-            ufin = fin
-            if fname.endswith('.gpg'):
-                ufin = StringIO(decrypt(fin, pwd))
-            this_df = pd.read_table(ufin, sep=delim, dtype=str, **kwargs)
-            this_df['fname'] = fname
-            this_df.columns = [c.replace("'", "") for c in this_df.columns]
-            df = this_df if df is None else df.append(
-                this_df, ignore_index=True)
-    return df
-
-
 def head(fname, N=10, bytes=None):
     if fname.endswith('.gpg'):
         s = None
@@ -121,6 +109,27 @@ def count_cfreq_prec(fn, patterns):
             for ch, c in cntrs.items():
                 c[rec.count(ch)] += 1
     return cntrs
+
+
+# ############################################################# #
+# ################### tabular data functions ################## #
+# ############################################################# #
+
+def load_files(fnames, delims=None, **kwargs):
+    df = None
+    delims = len(fnames) * ['|'] if delims is None else delims
+    pwd = None
+    for (fname, delim) in zip(fnames, delims):
+        with fopen(fname) as fin:
+            ufin = fin
+            if fname.endswith('.gpg'):
+                ufin = StringIO(decrypt(fin, pwd))
+            this_df = pd.read_table(ufin, sep=delim, dtype=str, **kwargs)
+            this_df['fname'] = fname
+            this_df.columns = [c.replace("'", "") for c in this_df.columns]
+            df = this_df if df is None else df.append(
+                this_df, ignore_index=True)
+    return df
 
 
 def prof_freq(df, attgrp, agglvl=0, multi_idx=False):
