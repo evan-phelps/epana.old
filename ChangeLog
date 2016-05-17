@@ -1,6 +1,8 @@
 CHANGES
 =======
 
+* conditionally return an output stream from decrypt function
+* added code frequency generator that currently outputs to xlsx.  Need to refactor to separate frequency data from output
 * moved print_full
 * categorized functions
 * separated decryption from opening network/local files

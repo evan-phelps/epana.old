@@ -121,7 +121,9 @@ def count_cfreq_prec(fn, patterns):
 # ################### tabular data functions ################## #
 # ############################################################# #
 
-def load_files(fnames, delims=None, **kwargs):
+# **kwargs):
+def load_files(fnames, delims=None, dtype=None,
+               usecols=None, error_bad_lines=False):
     df = None
     delims = len(fnames) * ['|'] if delims is None else delims
     pwd = None
@@ -129,8 +131,11 @@ def load_files(fnames, delims=None, **kwargs):
         with fopen(fname) as fin:
             ufin = fin
             if fname.endswith('.gpg'):
+                pwd = getpass.getpass('private key password: ')
                 ufin = decrypt(fin, pwd, ostream=True)
-            this_df = pd.read_table(ufin, sep=delim, dtype=str, **kwargs)
+            this_df = pd.read_table(ufin, sep=delim, dtype=dtype,
+                                    usecols=usecols, encoding='utf-8',
+                                    error_bad_lines=error_bad_lines)
             this_df['fname'] = fname
             this_df.columns = [c.replace("'", "") for c in this_df.columns]
             df = this_df if df is None else df.append(
