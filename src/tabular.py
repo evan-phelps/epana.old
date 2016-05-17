@@ -132,6 +132,12 @@ def load_files(fnames, delims=None, **kwargs):
     return df
 
 
+def print_full(x):
+    pd.set_option('display.max_rows', len(x))
+    print(x)
+    pd.reset_option('display.max_rows')
+
+
 def prof_freq(df, attgrp, agglvl=0, multi_idx=False):
     attsumm = None
     attgrp = [attgrp] if isinstance(attgrp, basestring) else attgrp
@@ -156,9 +162,3 @@ def prof_freq(df, attgrp, agglvl=0, multi_idx=False):
     if multi_idx:
         attsumm.set_index(attgrp, inplace=True)
     return attsumm
-
-
-def print_full(x):
-    pd.set_option('display.max_rows', len(x))
-    print(x)
-    pd.reset_option('display.max_rows')
