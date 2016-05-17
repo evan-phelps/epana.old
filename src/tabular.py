@@ -123,12 +123,11 @@ def count_cfreq_prec(fn, patterns):
 # ############################################################# #
 
 # **kwargs):
-def load_files(fnames, delims=None, dtype=str,
+def load_files(fnames, pwd=None, delims=None, dtype=str,
                quotechar="'", escapechar="'", quoting=csv.QUOTE_NONE,
                usecols=None, error_bad_lines=True):
     df = None
     delims = len(fnames) * ['|'] if delims is None else delims
-    pwd = None
     for (fname, delim) in zip(fnames, delims):
         with fopen(fname) as fin:
             ufin = fin
