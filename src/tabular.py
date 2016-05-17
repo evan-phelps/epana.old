@@ -122,7 +122,7 @@ def count_cfreq_prec(fn, patterns):
 # ############################################################# #
 
 # **kwargs):
-def load_files(fnames, delims=None, dtype=None,
+def load_files(fnames, delims=None, dtype=str,
                usecols=None, error_bad_lines=False):
     df = None
     delims = len(fnames) * ['|'] if delims is None else delims
