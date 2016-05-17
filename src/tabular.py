@@ -5,6 +5,7 @@
 # vim      : ts=4
 
 import os
+# import re
 from functools import partial
 from StringIO import StringIO
 import pandas as pd
@@ -35,12 +36,16 @@ def ssh_open(fpaths, srvr, usr, pwd,
 
 @contextmanager
 def fopen(fpath):
-    pwd = None
     srvr_pwds = {}
     this_open = partial(open, mode='rb')
     tokens = fpath.split(':')
     if len(tokens) > 1:
-        (user, server) = tokens[0].split('@')
+        user_server = tokens[0].split('@')
+        (user, server) = (None, None)
+        if len(user_server) == 2:
+            (user, server) = user_server
+        else:
+            (user, server) = getpass.getuser(), user_server[0]
         srvr_pwds[tokens[0]] = srvr_pwds[tokens[0]] \
             if tokens[0] in srvr_pwds \
             else getpass.getpass('password (%s): ' % tokens[0])
@@ -48,24 +53,26 @@ def fopen(fpath):
                             usr=user, pwd=srvr_pwds[tokens[0]])
         fpath = tokens[1]
     with this_open(fpath) as fin:
-        ufin = fin
-        # TODO: Can this be changed to decrypt and yield lines in blocks
-        #       so that the whole file does not need to be decrypted before
-        #       starting to yield lines?
-        if fpath.endswith('.gpg'):
-            gpg = gnupg.GPG(homedir='~/.gnupg')
-            pwd = getpass.getpass(
-                'private key password: ') if pwd is None else pwd
-            d = gpg.decrypt_file(fin, passphrase=pwd, always_trust=True)
-            ufin = StringIO(d.data)
-        yield ufin
+        yield fin
+
+
+def decrypt(fin, pwd=None):
+    gpg = gnupg.GPG(homedir='~/.gnupg')
+    pwd = getpass.getpass(
+        'private key password: ') if pwd is None else pwd
+    d = gpg.decrypt_file(fin, passphrase=pwd, always_trust=True)
+    return d.data.rstrip(os.linesep).split(os.linesep)
 
 
 def load_files(fnames, delims=None, **kwargs):
     df = None
     delims = len(fnames) * ['|'] if delims is None else delims
+    pwd = None
     for (fname, delim) in zip(fnames, delims):
-        with fopen(fname) as ufin:
+        with fopen(fname) as fin:
+            ufin = fin
+            if fname.endswith('.gpg'):
+                ufin = StringIO(decrypt(fin, pwd))
             this_df = pd.read_table(ufin, sep=delim, dtype=str, **kwargs)
             this_df['fname'] = fname
             this_df.columns = [c.replace("'", "") for c in this_df.columns]
@@ -74,35 +81,46 @@ def load_files(fnames, delims=None, **kwargs):
     return df
 
 
-def head(buf, N=10, bytes=None):
-    if bytes is True:
+def head(fname, N=10, bytes=None):
+    if fname.endswith('.gpg'):
+        s = None
+        with fopen(fname) as fin:
+            s = fin.read(131076)
+        pwd = getpass.getpass('private key password: ')
+        return decrypt(StringIO(s), pwd)[0:N]
+    elif bytes is True:
         # return buf.read(N).split(os.linesep)
-        return buf.read(N)
+        with fopen(fname) as buf:
+            return buf.read(N)
     else:
-        return [buf.next().rstrip(os.linesep) for i in xrange(N)]
-
-
-def head_gpg(fn, N=10):
-    gpg = gnupg.GPG(homedir='~/.gnupg')
-    pwd = getpass.getpass('private key password: ')
-    return head(StringIO(gpg.decrypt_file(StringIO(head(fopen(fn), 131076,
-                                                        bytes=True)),
-                                          passphrase=pwd,
-                                          always_trust=True).data),
-                N)
+        with fopen(fname) as buf:
+            return [buf.next().rstrip(os.linesep) for i in xrange(N)]
 
 
 def get_cols(fn, sep='|'):
     return [(i, cname) for (i, cname) in
-            enumerate(head_gpg(fn, 1)[0].split(sep))]
+            enumerate(head(fn, 1)[0].split(sep))]
 
 
-def count_cfreq_prec(fn, char='|'):
-    c = Counter()
-    with fopen(fn) as ufin:
+# def count_cfreq_prec(fn, patterns):
+#     cntrs = {ptrn: Counter() for ptrn in patterns}
+#     ptrns_compiled = {ptrn: re.compile(ptrn) for ptrn in patterns}
+#     with fopen(fn) as fin:
+#         ufin = decrypt(fin) if fn.endswith('.gpg') else fin
+#         for rec in ufin:
+#             for ptrn, c in cntrs.items():
+#                 c[len(ptrns_compiled[ptrn].findall(rec))] += 1
+#     return cntrs
+
+
+def count_cfreq_prec(fn, patterns):
+    cntrs = {ch: Counter() for ch in patterns}
+    with fopen(fn) as fin:
+        ufin = decrypt(fin) if fn.endswith('.gpg') else fin
         for rec in ufin:
-            c[rec.count(char)] += 1
-    return c
+            for ch, c in cntrs.items():
+                c[rec.count(ch)] += 1
+    return cntrs
 
 
 def prof_freq(df, attgrp, agglvl=0, multi_idx=False):

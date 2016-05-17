@@ -1,6 +1,8 @@
 CHANGES
 =======
 
+* use new fopen that makes net-v-local and encryption transparent
+* added vagrant; added debian folder for deb building; added to gitignore
 * add getpass to reqs
 * add gitignore and default make target of "test"
 * first commit
