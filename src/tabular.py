@@ -62,6 +62,8 @@ def fopen(fpath):
 
 
 def decrypt(fin, pwd=None):
+    # Some systems might need binary=/usr/bin/gpg2 if multiple versions
+    # are installed.  Consider adding parameter to specify.
     gpg = gnupg.GPG(homedir='~/.gnupg')
     pwd = getpass.getpass(
         'private key password: ') if pwd is None else pwd
@@ -90,6 +92,7 @@ def get_cols(fn, sep='|'):
             enumerate(head(fn, 1)[0].split(sep))]
 
 
+# TODO: Incorporate this regex version into the active count_cfreq_prec
 # def count_cfreq_prec(fn, patterns):
 #     cntrs = {ptrn: Counter() for ptrn in patterns}
 #     ptrns_compiled = {ptrn: re.compile(ptrn) for ptrn in patterns}
@@ -162,3 +165,16 @@ def prof_freq(df, attgrp, agglvl=0, multi_idx=False):
     if multi_idx:
         attsumm.set_index(attgrp, inplace=True)
     return attsumm
+
+
+def gen_code_freqs(df_in, cols, fnout):
+    xlwrtr = pd.ExcelWriter(fnout, engine='xlsxwriter')
+
+    for cname in cols:
+        df = prof_freq(df_in, cname)
+        sheetname = cname if type(cname) is str else '-'.join(cname)[0:31]
+        print(sheetname)
+        df.to_excel(xlwrtr, sheet_name=sheetname, index=False)
+    #     print(sheetname)
+    #     xlwrtr.sheets[cname].set_column('D:E', None, format_perc)
+    xlwrtr.save()

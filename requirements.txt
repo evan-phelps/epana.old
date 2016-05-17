@@ -3,3 +3,5 @@ numpy
 pandas
 paramiko
 gnupg
+xlsxwriter
+#getpass
