@@ -16,6 +16,7 @@ import paramiko
 from contextlib import contextmanager
 import gnupg
 from collections import Counter
+import csv
 
 
 # ############################################################# #
@@ -123,7 +124,8 @@ def count_cfreq_prec(fn, patterns):
 
 # **kwargs):
 def load_files(fnames, delims=None, dtype=str,
-               usecols=None, error_bad_lines=False):
+               quotechar="'", escapechar="'", quoting=csv.QUOTE_NONE,
+               usecols=None, error_bad_lines=True):
     df = None
     delims = len(fnames) * ['|'] if delims is None else delims
     pwd = None
@@ -131,9 +133,11 @@ def load_files(fnames, delims=None, dtype=str,
         with fopen(fname) as fin:
             ufin = fin
             if fname.endswith('.gpg'):
-                pwd = getpass.getpass('private key password: ')
+                pwd = getpass.getpass(
+                    'private key password: ') if pwd is None else pwd
                 ufin = decrypt(fin, pwd, ostream=True)
             this_df = pd.read_table(ufin, sep=delim, dtype=dtype,
+                                    quotechar=quotechar, quoting=quoting,
                                     usecols=usecols, encoding='utf-8',
                                     error_bad_lines=error_bad_lines)
             this_df['fname'] = fname
