@@ -185,7 +185,7 @@ def gen_code_freqs(df_in, cols, fnout):
         df = prof_freq(df_in, cname)
         sheetname = cname if type(cname) is str else '-'.join(cname)[0:31]
         print(sheetname)
-        df.to_excel(xlwrtr, sheet_name=sheetname, index=False)
+        df.to_excel(xlwrtr, sheet_name=sheetname, index=True)
     #     print(sheetname)
     #     xlwrtr.sheets[cname].set_column('D:E', None, format_perc)
     xlwrtr.save()
