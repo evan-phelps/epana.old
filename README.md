@@ -8,6 +8,29 @@ Notes:
 ** yum install libffi-devel
 ** pip install paramiko, even though it's in the requirements.txt for auto-installation
 
+## Example IPython session:  get cdw ids
+
+This was slow:
+
+```
+%load_ext sql
+import pandas as pd
+%config SqlMagic.autopandas=True
+import getpass
+
+user = 'ephelps'
+password = getpass.getpass('ephelps@dtprd2: ')
+c_dtprd2 = 'oracle://%s:%s@hssc-cdwr3-dtdb-p:1521/dtprd2'%(user, password)
+%sql $c_dtprd2 select 1 from dual
+
+%time vnums_cdw = %sql $c_dtprd2 select htb_enc_id_root, htb_enc_id_ext from cdw.visit where datasource_id = 25
+vnums_cdw.to_csv('vnums_MUSC.csv')
+
+%time patids_cdw = %sql $c_dtprd2 select mpi_systemcode, mpi_lid from cdw.patient_id_map where mpi_systemcode like 'MUSC%'
+# Wall time: 4min 44s
+patids_cdw.to_csv('pnums_MUSC.csv')
+```
+
 ## Example IPython session:  relational counts
 
 (22 seconds)
@@ -28,22 +51,28 @@ import pandas as pd
 [(fn,len(df),len(df.columns)) for fn,df in zip(fns,dfs)]
 lbls = ['mo', 'enc', 'pat', 'proc', 'ma', 'vit', 'dx', 'lab']
 
-b2x = { False: 'X', True: '' }
+b2x = { True: 'X', False: '' }
 
 patids = [df.PATIENT_ID.unique() for df in dfs]
 dfo = pd.concat([pd.Series(pids, index=pids) for pids in patids], axis=1, ignore_index=True)
 dfo.columns = lbls
-dfo = dfo.isnull().apply(lambda x: x.map(b2x))
+dfo = ~dfo.isnull()
+%time pnums_musc = pd.read_csv('pnums_MUSC.csv', dtype=str, usecols=[1,2], names=['SYSCD','PATIENT_ID'])
+pnums_musc.set_index('PATIENT_ID')
+dfo['pat_in_cdw'] = dfo.index.isin(pnums_musc.PATIENT_ID)
+dfo['pat_in_cdw_loose'] = dfo.index.str.lstrip('0').isin(pnums_musc.PATIENT_ID.str.lstrip('0'))
+dfo = dfo.apply(lambda x: x.map(b2x))
+
 dfo.reset_index(inplace=True)
-df_rela_patids = dfo.groupby(lbls).count().reset_index()
+df_rela_patids = dfo.groupby(list(lbls) + ['pat_in_cdw', 'pat_in_cdw_loose']).count().reset_index()
 df_rela_patids.columns = list(df_rela_patids.columns[0:-1]) + ['n_patids']
 
 lbls2, encids = zip(*[(lbl, df.VISIT_ID.unique()) for (lbl,df) in zip(lbls,dfs) if lbl != 'pat'])
 dfo2 = pd.concat([pd.Series(eids, index=eids) for eids in encids], axis=1, ignore_index=True)
 dfo2.columns = lbls2
-dfo2 = dfo2.isnull()
-%time vnums25 = tabular.load_files(['MUSC_Visit_EPIC_20140701_20150919.dat.gpg'], pwd=pwd, usecols=[0])
-dfo2['enc_in_cdw'] = dfo2.index.isin(vnums25.VISIT_ID)
+dfo2 = ~dfo2.isnull()
+%time vnums_musc = pd.read_csv('vnums_MUSC.csv', dtype=str, usecols=[2], names=['VISIT_ID'])
+dfo2['enc_in_cdw'] = dfo2.index.isin(vnums_musc.VISIT_ID)
 dfo2 = dfo2.apply(lambda x: x.map(b2x))
 dfo2 = pd.concat([df_enc[['VISIT_ID', 'PATIENT_CLASS']].set_index('VISIT_ID'), dfo2], axis=1).fillna('?')
 dfo2.columns = ['class'] + list(dfo2.columns[1:])
@@ -52,7 +81,7 @@ dfo2.reset_index(inplace=True)
 df_rela_encids = dfo2.groupby(['class'] + list(lbls2) + ['enc_in_cdw']).count().reset_index()
 df_rela_encids.columns = list(df_rela_encids.columns[0:-1]) + ['n_encids']
 
-df_rela_patids = df_rela_patids[['pat', 'enc', 'dx', 'proc', 'mo', 'ma', 'lab', 'vit', 'n_patids']]
+df_rela_patids = df_rela_patids[['pat', 'enc', 'dx', 'proc', 'mo', 'ma', 'lab', 'vit', 'pat_in_cdw', 'pat_in_cdw_loose', 'n_patids']]
 
 df_rela_encids = df_rela_encids[['class', 'enc', 'dx', 'proc', 'mo', 'ma', 'lab', 'vit', 'enc_in_cdw', 'n_encids']]
 
@@ -92,14 +121,3 @@ Out[17]: 356467
 In [18]: sum(df_mo.VISIT_ID.isin(df_enc.VISIT_ID))
 Out[18]: 356467
 ```
-
-%load_ext sql
-import pandas as pd
-%config SqlMagic.autopandas=True
-import getpass
-
-user = 'ephelps'
-password = getpass.getpass('ephelps@dtprd2: ')
-c_dtprd2 = 'oracle://%s:%s@hssc-cdwr3-dtdb-p:1521/dtprd2'%(user, password)
-%sql $c_dtprd2 select 1 from dual
-vnums = %sql $c_dtprd2 select htb_enc_act_id from cdw.visit where datasource_id = 25
