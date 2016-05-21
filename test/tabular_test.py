@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(__file__ + "/../../src"))
 
 class tabular_test(unittest.TestCase):
 
-    def test_rxnorm_req(self):
+    def test_test(self):
         pass
 
 

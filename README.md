@@ -40,16 +40,15 @@ import os, sys
 sys.path.insert(0, os.path.abspath("/home/ephelps/projects/dev/epana/src"))
 import tabular, glob, getpass
 pwd = getpass.getpass('pwd: ')
-fns = glob.glob('MUSC*_20150920_*.gpg')
+fns = sorted(glob.glob('MUSC*_20150920_*.gpg'))
 %time dfs = [tabular.load_files([fn], pwd=pwd) for fn in fns]
 [(fn,len(df),len(df.columns)) for fn,df in zip(fns,dfs)]
-df_enc = dfs[1]
-df_mpi, df_dx, df_px, df_lab, df_vit, df_mo, df_ma = dfs[2], dfs[6], dfs[3], dfs[7], dfs[5], dfs[0], dfs[4]
+df_dx, df_lab, df_ma, df_mo, df_mpi, df_px, df_vit, df_enc = dfs
 
 import pandas as pd
 
 [(fn,len(df),len(df.columns)) for fn,df in zip(fns,dfs)]
-lbls = ['mo', 'enc', 'pat', 'proc', 'ma', 'vit', 'dx', 'lab']
+lbls = ['dx', 'lab', 'ma', 'mo', 'pat', 'proc', 'vit', 'enc']
 
 b2x = { True: 'X', False: '' }
 

@@ -24,6 +24,7 @@ import csv
 # ############################################################# #
 # These should probably be moved to another file ############## #
 
+
 @contextmanager
 def ssh_open(fpaths, srvr, usr, pwd,
              known_hosts=os.environ['HOME'] + '/.ssh/known_hosts'):
@@ -152,7 +153,7 @@ def print_full(x):
     pd.reset_option('display.max_rows')
 
 
-def prof_freq(df, attgrp, agglvl=0, multi_idx=False):
+def freq(df, attgrp, agglvl=0, multi_idx=False):
     attsumm = None
     attgrp = [attgrp] if isinstance(attgrp, basestring) else attgrp
     if len(attgrp) == 1:
@@ -181,11 +182,28 @@ def prof_freq(df, attgrp, agglvl=0, multi_idx=False):
 def gen_code_freqs(df_in, cols, fnout):
     xlwrtr = pd.ExcelWriter(fnout, engine='xlsxwriter')
 
-    for cname in cols:
-        df = prof_freq(df_in, cname)
-        sheetname = cname if type(cname) is str else '-'.join(cname)[0:31]
-        print(sheetname)
-        df.to_excel(xlwrtr, sheet_name=sheetname, index=True)
-    #     print(sheetname)
+    for col in cols:
+        df = freq(df_in, col)
+        tabname = col if isinstance(col, basestring) else '-'.join(col)[0:31]
+        df.to_excel(xlwrtr, sheet_name=tabname, index=True)
     #     xlwrtr.sheets[cname].set_column('D:E', None, format_perc)
     xlwrtr.save()
+
+
+def count_relational_patterns(dfs, names, keycol):
+    kcol = [keycol] if isinstance(keycol, basestring) else keycol
+    dfs_reduced = [df[kcol].groupby(kcol)[kcol[0]].count()
+                   for df in dfs]
+    outer_count = pd.concat(dfs_reduced, axis=1, ignore_index=True).fillna(0)
+    outer_count.columns = names
+    outer_count.reset_index(inplace=True)
+    patterns = outer_count.groupby(names).count().reset_index()
+    patterns.columns = list(patterns.columns[:-1]) + ['count']
+    return patterns.astype(int)
+
+
+def count_existence_patterns(dfs, names, keycol):
+    rel_counts = count_relational_patterns(dfs, names, keycol)
+    rel_counts[names] = rel_counts[names] > 0
+    patterns = rel_counts.groupby(names)['count'].sum().reset_index()
+    return patterns

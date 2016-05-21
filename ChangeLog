@@ -1,6 +1,12 @@
 CHANGES
 =======
 
+* added some ipython sessions in readme
+* added ipython session notes to readme
+* add password parameter to load_files to avoid repeated prompts
+* change default parameters of load_files
+* change default dtype to str
+* added default parameters to load_files
 * conditionally return an output stream from decrypt function
 * added code frequency generator that currently outputs to xlsx.  Need to refactor to separate frequency data from output
 * moved print_full
