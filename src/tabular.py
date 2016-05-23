@@ -161,7 +161,6 @@ def freq(df, attgrp, agglvl=0, multi_idx=False):
         att = attgrp[0]
         attsumm = pd.DataFrame({'COUNT': df[att].value_counts()})
         attsumm.index.names = [att]
-#         attsumm = attsumm.reset_index(level=att)
     else:
         attsumm = df[attgrp].groupby(attgrp).agg(lambda x: len(x))
         attsumm = attsumm.reset_index(name='COUNT')
@@ -190,13 +189,19 @@ def gen_code_freqs(df_in, cols, fnout):
     xlwrtr.save()
 
 
-def count_relational_patterns(dfs, names, keycol):
+def count_outer_relations(dfs, names, keycol):
     kcol = [keycol] if isinstance(keycol, basestring) else keycol
     dfs_reduced = [df[kcol].groupby(kcol)[kcol[0]].count()
                    for df in dfs]
     outer_count = pd.concat(dfs_reduced, axis=1, ignore_index=True).fillna(0)
     outer_count.columns = names
-    outer_count.reset_index(inplace=True)
+    outer_count[keycol] = outer_count.index.values
+    return outer_count
+
+
+def count_relational_patterns(dfs, names, keycol):
+    outer_count = count_outer_relations(dfs, names, keycol)
+    # outer_count.reset_index(inplace=True)
     patterns = outer_count.groupby(names).count().reset_index()
     patterns.columns = list(patterns.columns[:-1]) + ['count']
     return patterns.astype(int)

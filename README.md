@@ -52,6 +52,19 @@ lbls = ['dx', 'lab', 'ma', 'mo', 'pat', 'proc', 'vit', 'enc']
 
 b2x = { True: 'X', False: '' }
 
+dfslbls = zip(*[(df, lbl) for (df, lbl) in zip(dfs, lbls) if lbl != 'pat'])
+
+%time vnums_musc = pd.read_csv('vnums_MUSC.csv', dtype=str, usecols=[2], names=['VISIT_ID'])
+
+df_exsts_encids = tabular.count_existence_patterns(list(dfslbls[0]), list(dfslbls[1]), keycol='VISIT_ID')
+
+# or to combine cdw check for all that exist...
+outer_count = tabular.count_outer_relations(list(dfslbls[0]), dfslbls[1], 'VISIT_ID')
+outer_exists = (outer_count[list(dfslbls[1])]>0).apply(lambda x: x.map(b2x))
+outer_exists['enc_in_cdw'] = outer_count.VISIT_ID.isin(vnums_musc.VISIT_ID).map(b2x)
+df_exsts_encids_wCDW = tabular.freq(outer_exists, list(dfslbls[1])+['enc_in_cdw'])
+
+# the rest of this code block is old... before the count functions were added into the library...
 patids = [df.PATIENT_ID.unique() for df in dfs]
 dfo = pd.concat([pd.Series(pids, index=pids) for pids in patids], axis=1, ignore_index=True)
 dfo.columns = lbls
@@ -120,3 +133,26 @@ Out[17]: 356467
 In [18]: sum(df_mo.VISIT_ID.isin(df_enc.VISIT_ID))
 Out[18]: 356467
 ```
+
+## Heights
+
+import os, sys
+sys.path.insert(0, os.path.abspath("/home/ephelps/projects/dev/epana/src"))
+import tabular, glob, getpass
+%matplotlib
+import matplotlib as mpl
+pwd = getpass.getpass('pwd: ')
+
+df_new = tabular.load_files(['MUSC_VITALS_Extract_20150920_20151017.dat.gpg'], pwd)
+df_old = tabular.load_files(['phelpse@hssc-hb0-s:/home/phelpse/projects/musc/MUSC_Vitals_EPIC_20140701_20150919.dat.gpg'], pwd)
+heights = (df_new[df_new.OBSERVATION_NAME=='WEIGHT/SCALE']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)*2.54/100)
+heights = heights[heights<200]
+
+
+(df_new[df_new.OBSERVATION_NAME=='WEIGHT/SCALE']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)).hist(bins=500, normed=True)
+(df_old[df_old.OBSERVATION_TYPE_DESC=='Height']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)*100).hist(bins=100, normed=True, alpha=0.5)
+
+mpl.pyplot.xlim([0,7500])
+mpl.pyplot.xlim([0,6000])
+df_new[df_new.OBSERVATION_NAME=='WEIGHT/SCALE']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True).hist(bins=5000)
+mpl.pyplot.xlim([0,500])
