@@ -147,14 +147,8 @@ pwd = getpass.getpass('pwd: ')
 
 df_new = tabular.load_files(['MUSC_VITALS_Extract_20150920_20151017.dat.gpg'], pwd)
 df_old = tabular.load_files(['phelpse@hssc-hb0-s:/home/phelpse/projects/musc/MUSC_Vitals_EPIC_20140701_20150919.dat.gpg'], pwd)
-heights = (df_new[df_new.OBSERVATION_NAME=='WEIGHT/SCALE']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)*2.54/100)
-heights = heights[heights<200]
+#heights = df_new[df_new.OBSERVATION_NAME=='HEIGHT']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)
 
 
-(df_new[df_new.OBSERVATION_NAME=='WEIGHT/SCALE']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)).hist(bins=500, normed=True)
-(df_old[df_old.OBSERVATION_TYPE_DESC=='Height']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)*100).hist(bins=100, normed=True, alpha=0.5)
-
-mpl.pyplot.xlim([0,7500])
-mpl.pyplot.xlim([0,6000])
-df_new[df_new.OBSERVATION_NAME=='WEIGHT/SCALE']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True).hist(bins=5000)
-mpl.pyplot.xlim([0,500])
+df_new[df_new.OBSERVATION_NAME=='HEIGHT']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True).hist(bins=[-0.5+i for i in range(100)], normed=True)
+(df_old[df_old.OBSERVATION_TYPE_DESC=='Height']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)*2.54).hist(bins=100, normed=True, alpha=0.5)
