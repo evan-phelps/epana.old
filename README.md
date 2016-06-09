@@ -56,10 +56,12 @@ dfslbls = zip(*[(df, lbl) for (df, lbl) in zip(dfs, lbls) if lbl != 'pat'])
 
 %time vnums_musc = pd.read_csv('vnums_MUSC.csv', dtype=str, usecols=[2], names=['VISIT_ID'])
 
-df_exsts_encids = tabular.count_existence_patterns(list(dfslbls[0]), list(dfslbls[1]), keycol='VISIT_ID')
+names = list(dfslbls[1])
+df_exsts_encids = tabular.count_existence_patterns(list(dfslbls[0]), names, keycol='VISIT_ID')
+df_exsts_encids[names] = df_exsts_encids[names].apply(lambda x: x.map(b2x))
 
 # or to combine cdw check for all that exist...
-outer_count = tabular.count_outer_relations(list(dfslbls[0]), dfslbls[1], 'VISIT_ID')
+outer_count = tabular.count_outer_relations(list(dfslbls[0]), names, 'VISIT_ID')
 outer_exists = (outer_count[list(dfslbls[1])]>0).apply(lambda x: x.map(b2x))
 outer_exists['enc_in_cdw'] = outer_count.VISIT_ID.isin(vnums_musc.VISIT_ID).map(b2x)
 df_exsts_encids_wCDW = tabular.freq(outer_exists, list(dfslbls[1])+['enc_in_cdw'])

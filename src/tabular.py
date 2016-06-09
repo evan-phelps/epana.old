@@ -203,12 +203,12 @@ def count_relational_patterns(dfs, names, keycol):
     outer_count = count_outer_relations(dfs, names, keycol)
     # outer_count.reset_index(inplace=True)
     patterns = outer_count.groupby(names).count().reset_index()
-    patterns.columns = list(patterns.columns[:-1]) + ['count']
+    patterns.columns = list(patterns.columns[:-1]) + ['COUNT']
     return patterns.astype(int)
 
 
 def count_existence_patterns(dfs, names, keycol):
     rel_counts = count_relational_patterns(dfs, names, keycol)
     rel_counts[names] = rel_counts[names] > 0
-    patterns = rel_counts.groupby(names)['count'].sum().reset_index()
+    patterns = rel_counts.groupby(names)['COUNT'].sum().reset_index()
     return patterns
