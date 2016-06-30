@@ -54,17 +54,35 @@ b2x = { True: 'X', False: '' }
 
 dfslbls = zip(*[(df, lbl) for (df, lbl) in zip(dfs, lbls) if lbl != 'pat'])
 
-%time vnums_musc = pd.read_csv('vnums_MUSC.csv', dtype=str, usecols=[2], names=['VISIT_ID'])
+#%time vnums_musc = pd.read_csv('vnums_MUSC.csv', dtype=str, usecols=[2], names=['VISIT_ID'])
+%time vnums_musc = pd.read_csv('vnums_musc_epic.dsv', dtype=str, usecols=[2,4], sep='|', names=['VISIT_ID', 'PATIENT_CLASS'])
 
 names = list(dfslbls[1])
 df_exsts_encids = tabular.count_existence_patterns(list(dfslbls[0]), names, keycol='VISIT_ID')
 df_exsts_encids[names] = df_exsts_encids[names].apply(lambda x: x.map(b2x))
 
 # or to combine cdw check for all that exist...
-outer_count = tabular.count_outer_relations(list(dfslbls[0]), names, 'VISIT_ID')
-outer_exists = (outer_count[list(dfslbls[1])]>0).apply(lambda x: x.map(b2x))
-outer_exists['enc_in_cdw'] = outer_count.VISIT_ID.isin(vnums_musc.VISIT_ID).map(b2x)
-df_exsts_encids_wCDW = tabular.freq(outer_exists, list(dfslbls[1])+['enc_in_cdw'])
+outer_exists = tabular.outer_existence_pattern(list(dfslbls[0]), names, 'VISIT_ID')
+outer_exists['enc_in_cdw'] = outer_exists.VISIT_ID.isin(vnums_musc.VISIT_ID)
+#df_exsts_encids_wCDW = tabular.freq(outer_exists, list(dfslbls[1])+['enc_in_cdw'])
+#df_exsts_encids_wCDW[names+['enc_in_cdw']] = df_exsts_encids_wCDW[names+['enc_in_cdw']].apply(lambda x: x.map(b2x))
+
+import random
+s10 = lambda x: ','.join(random.sample(x, 10 if len(x)>=10 else len(x)))
+
+vnums = pd.concat([vnums_musc.set_index('VISIT_ID', drop=False)[['VISIT_ID', 'PATIENT_CLASS']], df_enc.set_index('VISIT_ID', drop=False)[['VISIT_ID', 'PATIENT_CLASS']]])
+df_exsts_encids_wCDW = outer_exists.merge(vnums, how='left', left_on='VISIT_ID', right_on='VISIT_ID').fillna('?').groupby(names+['enc_in_cdw', 'PATIENT_CLASS']).aggregate(['count', 'min', 'max', s10]).reset_index()
+df_exsts_encids_wCDW[names+['enc_in_cdw']] = df_exsts_encids_wCDW[names+['enc_in_cdw']].apply(lambda x: x.map(b2x))
+df_exsts_encids_wCDW.columns = names + ['enc_in_cdw', 'class', 'n_encids', 'encid_i', 'encid_f', 'encid_rnd_samples']
+#outer_exists.groupby(names+['enc_in_cdw']).aggregate(['count', 'min', 'max', s10]).reset_index()
+#outer_exists[(~outer_exists.enc)&(~outer_exists.enc_in_cdw)].sort(names)[names].apply(lambda x: x.map(b2x))
+#outer_exists[(~outer_exists.enc)&(~outer_exists.enc_in_cdw)].sort(names)[names].apply(lambda x: x.map(b2x)).to_excel('musc_epic_incr_orphans.xlsx')
+
+fnout = 'musc_epic_incr_rela.xlsx'
+xlwrtr = pd.ExcelWriter(fnout, engine='xlsxwriter')
+outer_exists[(~outer_exists.enc)&(~outer_exists.enc_in_cdw)].sort(names+['enc_in_cdw'])[names+['enc_in_cdw']].apply(lambda x: x.map(b2x)).to_excel(xlwrtr, sheet_name='all orphans', index=True)
+df_exsts_encids_wCDW.to_excel(xlwrtr, sheet_name='encounter integrity', index=False)
+xlwrtr.save()
 
 # the rest of this code block is old... before the count functions were added into the library...
 patids = [df.PATIENT_ID.unique() for df in dfs]
@@ -137,7 +155,7 @@ Out[18]: 356467
 ```
 
 ## Heights
-
+```
 import os, sys
 sys.path.insert(0, os.path.abspath("/home/ephelps/projects/dev/epana/src"))
 import tabular, glob, getpass
@@ -152,3 +170,13 @@ df_old = tabular.load_files(['phelpse@hssc-hb0-s:/home/phelpse/projects/musc/MUS
 
 df_new[df_new.OBSERVATION_NAME=='HEIGHT']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True).hist(bins=[-0.5+i for i in range(100)], normed=True)
 (df_old[df_old.OBSERVATION_TYPE_DESC=='Height']['OBSERVATION_VALUE'].convert_objects(convert_numeric=True)*2.54).hist(bins=100, normed=True, alpha=0.5)
+```
+
+## Relational 2
+```
+df_rel = tabular.count_outer_relations(list(dfslbls[0]), names, keycol='VISIT_ID')
+df_rel[df_rel.columns[:-1]] = df_rel[df_rel.columns[:-1]]>0
+df_rel.head()
+df_rel.groupby(list(df_rel.columns[:-1])).aggregate(['min', 'count']).reset_index()
+```
+

@@ -199,6 +199,12 @@ def count_outer_relations(dfs, names, keycol):
     return outer_count
 
 
+def outer_existence_pattern(dfs, names, keycol):
+    ex_ptrn = count_outer_relations(dfs, names, keycol)
+    ex_ptrn[names] = ex_ptrn[names] > 0
+    return ex_ptrn
+
+
 def count_relational_patterns(dfs, names, keycol):
     outer_count = count_outer_relations(dfs, names, keycol)
     # outer_count.reset_index(inplace=True)
@@ -207,6 +213,7 @@ def count_relational_patterns(dfs, names, keycol):
     return patterns.astype(int)
 
 
+# TODO Maybe refactor to use outer_existence_pattern
 def count_existence_patterns(dfs, names, keycol):
     rel_counts = count_relational_patterns(dfs, names, keycol)
     rel_counts[names] = rel_counts[names] > 0
