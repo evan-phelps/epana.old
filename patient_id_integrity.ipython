@@ -1,0 +1,91 @@
+import os, sys
+import pandas as pd
+sys.path.insert(0, os.path.abspath("/home/ephelps/projects/dev/epana/src"))
+import tabular, glob, getpass
+pwd = getpass.getpass('pwd: ')
+
+df_mpi_pids = tabular.load_files(['MUSC_MPI_Extract_20150920_20151017_3.dat.gpg'], usecols=[0], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_enc_pids = tabular.load_files(['MUSC_Visit_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_dx_pids = tabular.load_files(['MUSC_Diagnosis_Extract_20150920_20151017_3.dat.gpg'], usecols=[3], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_px_pids = tabular.load_files(['MUSC_Procedure_Extract_20150920_20151017_3.dat.gpg'], usecols=[3], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_vit_pids = tabular.load_files(['MUSC_Vitals_Extract_20150920_20151017_3.dat.gpg'], usecols=[5], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_mo_pids = tabular.load_files(['MUSC_MED_Order_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_ma_pids = tabular.load_files(['MUSC_MED_Admin_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_lr_pids = tabular.load_files(['MUSC_Lab_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+dfs = [df_mpi_pids, df_enc_pids, df_dx_pids, df_px_pids, df_lr_pids, df_mo_pids, df_ma_pids]
+
+for df in dfs:
+	df['PATIENT_ID_NUM'] = pd.to_numeric(df.PATIENT_ID)
+
+df_cdw_pids = tabular.load_files(['pnums_MUSC.csv'], delims=[','], usecols=[1,2])
+df_cdw_pids.columns = ['SYS', 'PATIENT_ID', 'fname']
+df_cdw_pids['PATIENT_ID_NUM'] = pd.to_numeric(df_cdw_pids.PATIENT_ID)
+df_cdw_pids = df_cdw_pids[df_cdw_pids.PATIENT_ID_NUM.isin(pd.concat(dfs).PATIENT_ID_NUM.unique())]
+df_cdw_pids_epic = df_cdw_pids[df_cdw_pids.SYS=='MUSC_EPIC'][['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids_not_epic = df_cdw_pids[df_cdw_pids.SYS!='MUSC_EPIC'][['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids = df_cdw_pids[['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids.dropna(inplace=True)
+df_cdw_pids_epic.dropna(inplace=True)
+df_cdw_pids_not_epic.dropna(inplace=True)
+
+dfs.append(df_cdw_pids_epic)
+dfs.append(df_cdw_pids_not_epic)
+#dfs.append(df_cdw_pids)
+
+names = ['mpi', 'enc', 'dx', 'px', 'lr', 'mo', 'ma', 'cdw_epic', 'cdw_not_epic'] #, 'cdw_either']
+df_pat_id_ptrns = tabular.outer_existence_pattern(dfs, names, 'PATIENT_ID')
+df_outer_str = tabular.freq(df_pat_id_ptrns[df_pat_id_ptrns.mpi|df_pat_id_ptrns.enc|df_pat_id_ptrns.dx|df_pat_id_ptrns.px|df_pat_id_ptrns.lr|df_pat_id_ptrns.mo|df_pat_id_ptrns.ma], names) #.sort(['mpi','cdw_either', 'enc'])
+tabular.print_full(df_outer_str)
+
+df_outer_num = tabular.freq(tabular.outer_existence_pattern(dfs, names, 'PATIENT_ID_NUM'), names) #.sort(['mpi','cdw_either', 'enc'])
+tabular.print_full(df_outer_num)
+
+tabular.print_full(df_outer_num[~(df_outer_num.mpi|df_outer_num.cdw_epic|df_outer_num.cdw_not_epic)])
+tabular.print_full(df_outer_str[~(df_outer_str.mpi|df_outer_str.cdw_epic|df_outer_str.cdw_not_epic)])
+
+df_outer_str[['mpi', 'cdw_either', 'enc', 'COUNT']].groupby(['mpi', 'cdw_either', 'enc']).sum().reset_index()
+df_outer_num[['mpi', 'cdw_either', 'enc', 'COUNT']].groupby(['mpi', 'cdw_either', 'enc']).sum().reset_index()
+
+# #######################
+
+import os, sys
+import pandas as pd
+sys.path.insert(0, os.path.abspath("/home/ephelps/projects/dev/epana/src"))
+import tabular, glob, getpass
+pwd = getpass.getpass('pwd: ')
+
+df_mpi_pids = tabular.load_files(['MUSC_MPI_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd)[['PATIENT_ID']]
+df_enc_pids_vids = tabular.load_files(['MUSC_Visit_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd)[['PATIENT_ID', 'VISIT_ID']]
+df_dx_vids = tabular.load_files(['MUSC_Diagnosis_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd)[['PATIENT_ID', 'VISIT_ID']]
+df_px_vids = tabular.load_files(['MUSC_Procedure_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd)[['PATIENT_ID', 'VISIT_ID']]
+df_vit_vids = tabular.load_files(['MUSC_Vitals_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd)[['PATIENT_ID', 'VISIT_ID']]
+df_mo_vids = tabular.load_files(['MUSC_MED_Order_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd, error_bad_lines=False)[['PATIENT_ID', 'VISIT_ID']]
+df_ma_vids = tabular.load_files(['MUSC_MED_Admin_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd)[['PATIENT_ID', 'VISIT_ID']]
+df_lr_vids = tabular.load_files(['MUSC_Lab_Extract_20150920_20151017_3.dat.gpg'], pwd=pwd)[['PATIENT_ID', 'VISIT_ID']]
+dfs = [df_enc_pids_vids, df_dx_vids, df_px_vids, df_lr_vids, df_mo_vids, df_ma_vids, df_vit_vids]
+
+for df in [df_mpi_pids]+dfs:
+	df['PATIENT_ID_NUM'] = pd.to_numeric(df.PATIENT_ID)
+
+df_cdw_pids = tabular.load_files(['pnums_MUSC.csv'], delims=[','], usecols=[1,2])
+df_cdw_pids.columns = ['SYS', 'PATIENT_ID', 'fname']
+df_cdw_pids['PATIENT_ID_NUM'] = pd.to_numeric(df_cdw_pids.PATIENT_ID)
+df_cdw_pids = df_cdw_pids[df_cdw_pids.PATIENT_ID_NUM.isin(pd.concat([df_mpi_pids]+dfs).PATIENT_ID_NUM.unique())]
+df_cdw_pids_epic = df_cdw_pids[df_cdw_pids.SYS=='MUSC_EPIC'][['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids_not_epic = df_cdw_pids[df_cdw_pids.SYS!='MUSC_EPIC'][['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids = df_cdw_pids[['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids.dropna(inplace=True)
+df_cdw_pids_epic.dropna(inplace=True)
+df_cdw_pids_not_epic.dropna(inplace=True)
+
+names = ['enc', 'dx', 'px', 'lr', 'mo', 'ma', 'vit']
+
+df_outer = df_mpi_pids.merge(df_enc_pids_vids.merge(tabular.outer_existence_pattern(dfs, names, 'VISIT_ID'), on='VISIT_ID', how='outer'), on='PATIENT_ID_NUM', how='outer')
+df_outer['pat_match'] = df_outer.PATIENT_ID_x==df_outer.PATIENT_ID_y
+df_outer.head()
+df_outer['pat_num_match'] = pd.to_numeric(df_outer.PATIENT_ID_x)==pd.to_numeric(df_outer.PATIENT_ID_y)
+df_outer.head()
+tabular.freq(df_outer, ['enc', 'pat_match', 'pat_num_match', 'dx', 'px', 'lr', 'mo', 'ma', 'vit'])
+tabular.print_full(tabular.freq(df_outer, ['enc', 'pat_match', 'pat_num_match', 'dx', 'px', 'lr', 'mo', 'ma', 'vit']))
+
+
