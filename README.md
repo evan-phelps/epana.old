@@ -40,15 +40,15 @@ import os, sys
 sys.path.insert(0, os.path.abspath("/home/ephelps/projects/dev/epana/src"))
 import tabular, glob, getpass
 pwd = getpass.getpass('pwd: ')
-fns = sorted(glob.glob('MUSC*_20150920_*.gpg'))
-%time dfs = [tabular.load_files([fn], pwd=pwd) for fn in fns]
+fns = sorted(glob.glob('MUSC*_3.dat.gpg'))
+%time dfs = [tabular.load_files([fn], pwd=pwd, error_bad_lines=False) for fn in fns]
 [(fn,len(df),len(df.columns)) for fn,df in zip(fns,dfs)]
-df_dx, df_lab, df_ma, df_mo, df_mpi, df_px, df_vit, df_enc = dfs
+df_dx, df_lab, df_ma, df_mo, df_mpi, df_px, df_enc, df_vit = dfs
 
 import pandas as pd
 
 [(fn,len(df),len(df.columns)) for fn,df in zip(fns,dfs)]
-lbls = ['dx', 'lab', 'ma', 'mo', 'pat', 'proc', 'vit', 'enc']
+lbls = ['dx', 'lab', 'ma', 'mo', 'pat', 'proc', 'enc', 'vit']
 
 b2x = { True: 'X', False: '' }
 
@@ -82,6 +82,48 @@ fnout = 'musc_epic_incr_rela.xlsx'
 xlwrtr = pd.ExcelWriter(fnout, engine='xlsxwriter')
 outer_exists[(~outer_exists.enc)&(~outer_exists.enc_in_cdw)].sort(names+['enc_in_cdw'])[names+['enc_in_cdw']].apply(lambda x: x.map(b2x)).to_excel(xlwrtr, sheet_name='all orphans', index=True)
 df_exsts_encids_wCDW.to_excel(xlwrtr, sheet_name='encounter integrity', index=False)
+
+df_mpi_pids = tabular.load_files(['MUSC_MPI_Extract_20150920_20151017_3.dat.gpg'], usecols=[0], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_enc_pids = tabular.load_files(['MUSC_Visit_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_dx_pids = tabular.load_files(['MUSC_Diagnosis_Extract_20150920_20151017_3.dat.gpg'], usecols=[3], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_px_pids = tabular.load_files(['MUSC_Procedure_Extract_20150920_20151017_3.dat.gpg'], usecols=[3], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_vit_pids = tabular.load_files(['MUSC_Vitals_Extract_20150920_20151017_3.dat.gpg'], usecols=[5], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_mo_pids = tabular.load_files(['MUSC_MED_Order_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_ma_pids = tabular.load_files(['MUSC_MED_Admin_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+df_lr_pids = tabular.load_files(['MUSC_Lab_Extract_20150920_20151017_3.dat.gpg'], usecols=[2], pwd=pwd)[['PATIENT_ID']].drop_duplicates()
+dfs = [df_mpi_pids, df_enc_pids, df_dx_pids, df_px_pids, df_lr_pids, df_mo_pids, df_ma_pids]
+
+for df in dfs:
+        df['PATIENT_ID_NUM'] = pd.to_numeric(df.PATIENT_ID)
+
+df_cdw_pids = tabular.load_files(['pnums_MUSC.csv'], delims=[','], usecols=[1,2])
+df_cdw_pids.columns = ['SYS', 'PATIENT_ID', 'fname']
+df_cdw_pids['PATIENT_ID_NUM'] = pd.to_numeric(df_cdw_pids.PATIENT_ID)
+df_cdw_pids = df_cdw_pids[df_cdw_pids.PATIENT_ID_NUM.isin(pd.concat(dfs).PATIENT_ID_NUM.unique())]
+df_cdw_pids_epic = df_cdw_pids[df_cdw_pids.SYS=='MUSC_EPIC'][['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids_not_epic = df_cdw_pids[df_cdw_pids.SYS!='MUSC_EPIC'][['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids = df_cdw_pids[['PATIENT_ID', 'PATIENT_ID_NUM']]
+df_cdw_pids.dropna(inplace=True)
+df_cdw_pids_epic.dropna(inplace=True)
+df_cdw_pids_not_epic.dropna(inplace=True)
+
+dfs.append(df_cdw_pids_epic)
+dfs.append(df_cdw_pids_not_epic)
+#dfs.append(df_cdw_pids)
+
+names = ['mpi', 'enc', 'dx', 'px', 'lr', 'mo', 'ma', 'cdw_epic', 'cdw_not_epic'] #, 'cdw_either']
+df_pat_id_ptrns = tabular.outer_existence_pattern(dfs, names, 'PATIENT_ID')
+df_outer_str = tabular.freq(df_pat_id_ptrns[df_pat_id_ptrns.mpi|df_pat_id_ptrns.enc|df_pat_id_ptrns.dx|df_pat_id_ptrns.px|df_pat_id_ptrns.lr|df_pat_id_ptrns.mo|df_pat_id_ptrns.ma], names) #.sort(['mpi','cdw_either', 'enc'])
+tabular.print_full(df_outer_str)
+
+df_outer_num = tabular.freq(tabular.outer_existence_pattern(dfs, names, 'PATIENT_ID_NUM'), names) #.sort(['mpi','cdw_either', 'enc'])
+tabular.print_full(df_outer_num)
+
+#df_outer_num[~(df_outer_num.mpi|df_outer_num.cdw_epic|df_outer_num.cdw_not_epic)].to_excel(xlwrtr, sheet_name='patient_id_num', index=False)
+#df_outer_str[~(df_outer_str.mpi|df_outer_str.cdw_epic|df_outer_str.cdw_not_epic)].to_excel(xlwrtr, sheet_name='patient_id_str', index=False)
+df_outer_num.to_excel(xlwrtr, sheet_name='patient integrity, num', index=False)
+df_outer_str.to_excel(xlwrtr, sheet_name='patient integrity, str', index=False)
+
 xlwrtr.save()
 
 # the rest of this code block is old... before the count functions were added into the library...
