@@ -149,7 +149,11 @@ def load_files(fnames, pwd=None, delims=None, dtype=str,
 
 def print_full(x):
     pd.set_option('display.max_rows', len(x))
+    pd.set_option('display.max_columns', len(x.columns)+1)
+    pd.set_option('display.width', 1000)
     print(x)
+    pd.reset_option('display.width')
+    pd.reset_option('display.max_columns')
     pd.reset_option('display.max_rows')
 
 
@@ -164,9 +168,9 @@ def freq(df, attgrp, agglvl=0, multi_idx=False):
     else:
         attsumm = df[attgrp].groupby(attgrp).agg(lambda x: len(x))
         attsumm = attsumm.reset_index(name='COUNT')
-    attsumm = attsumm.sort('COUNT', ascending=False)
+    attsumm = attsumm.sort_values(['COUNT'], ascending=[False])
     if agglvl > 0:
-        attsumm = attsumm.sort(attgrp[0:agglvl])
+        attsumm = attsumm.sort_values(attgrp[0:agglvl]+['COUNT'], ascending=['True']*agglvl+[False])
         attsumm['PERC'] = attsumm.groupby(
             attgrp[0:agglvl]).COUNT.apply(lambda x: 100 * x / sum(x))
         attsumm['CUMPERC'] = attsumm.groupby(attgrp[0:agglvl]).PERC.cumsum()
