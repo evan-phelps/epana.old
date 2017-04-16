@@ -157,6 +157,13 @@ def print_full(x):
     pd.reset_option('display.max_rows')
 
 
+def coalesce(df, cols):
+    coalesced = df[cols[0]]
+    for cname in cols[1:]:
+        coalesced = coalesced.combine_first(df[cname])
+    return coalesced
+
+
 def freq(df, attgrp, agglvl=0, multi_idx=False):
     attsumm = None
     attgrp = [attgrp] if isinstance(attgrp, basestring) else attgrp
